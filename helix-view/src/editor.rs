@@ -84,6 +84,7 @@ impl Default for GutterConfig {
     fn default() -> Self {
         Self {
             layout: vec![
+                GutterType::ScrollBar,
                 GutterType::Diagnostics,
                 GutterType::Spacer,
                 GutterType::LineNumbers,
@@ -553,6 +554,8 @@ pub enum GutterType {
     Spacer,
     /// Highlight local changes
     Diff,
+    /// Show scrollbar
+    ScrollBar,
 }
 
 impl std::str::FromStr for GutterType {

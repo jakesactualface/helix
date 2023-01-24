@@ -731,7 +731,7 @@ impl EditorView {
         is_focused: bool,
     ) {
         let text = doc.text().slice(..);
-        let last_line = view.last_line(doc);
+        let last_line = (view.offset.row + view.inner_height()).saturating_sub(1);
 
         // it's used inside an iterator so the collect isn't needless:
         // https://github.com/rust-lang/rust-clippy/issues/6164
