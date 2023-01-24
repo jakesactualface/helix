@@ -20,6 +20,7 @@ use helix_view::{
     document::{Mode, SCRATCH_BUFFER_NAME},
     editor::{CompleteAction, CursorShapeConfig},
     graphics::{Color, CursorKind, Modifier, Rect, Style},
+    gutter::GutterFn,
     input::{KeyEvent, MouseButton, MouseEvent, MouseEventKind},
     keyboard::{KeyCode, KeyModifiers},
     Document, Editor, Theme, View,
@@ -149,7 +150,7 @@ impl EditorView {
         };
 
         Self::render_text_highlights(doc, view.offset, inner, surface, theme, highlights, &config);
-        Self::render_gutter(editor, doc, view, view.area, surface, theme, is_focused);
+        Self::render_gutters(editor, doc, view, surface, theme, is_focused);
         Self::render_rulers(editor, doc, view, inner, surface, theme);
 
         if is_focused {
@@ -721,17 +722,19 @@ impl EditorView {
         }
     }
 
-    pub fn render_gutter(
+    pub fn render_gutters(
         editor: &Editor,
         doc: &Document,
         view: &View,
-        viewport: Rect,
         surface: &mut Surface,
         theme: &Theme,
         is_focused: bool,
     ) {
+        let viewport = view.area;
+        let gutter_style = theme.get("ui.gutter");
+        let gutter_selected_style = theme.get("ui.gutter.selected");
+
         let text = doc.text().slice(..);
-        let last_line = (view.offset.row + view.inner_height()).saturating_sub(1);
 
         // it's used inside an iterator so the collect isn't needless:
         // https://github.com/rust-lang/rust-clippy/issues/6164
@@ -742,46 +745,88 @@ impl EditorView {
             .map(|range| range.cursor_line(text))
             .collect();
 
-        let mut offset = 0;
-
-        let gutter_style = theme.get("ui.gutter");
-        let gutter_selected_style = theme.get("ui.gutter.selected");
-
-        // avoid lots of small allocations by reusing a text buffer for each line
-        let mut text = String::with_capacity(8);
+        let mut left_offset = 0;
+        let mut right_offset = 0;
 
         for gutter_type in view.gutters() {
             let mut gutter = gutter_type.style(editor, doc, view, theme, is_focused);
             let width = gutter_type.width(view, doc);
-            text.reserve(width); // ensure there's enough space for the gutter
-            for (i, line) in (view.offset.row..(last_line + 1)).enumerate() {
-                let selected = cursors.contains(&line);
-                let x = viewport.x + offset;
-                let y = viewport.y + i as u16;
 
-                let gutter_style = if selected {
-                    gutter_selected_style
-                } else {
-                    gutter_style
-                };
+            Self::render_gutter_item(
+                viewport.x + left_offset,
+                width,
+                &mut gutter,
+                &cursors,
+                gutter_style,
+                gutter_selected_style,
+                view,
+                surface,
+            );
 
-                if let Some(style) = gutter(line, selected, &mut text) {
-                    surface.set_stringn(x, y, &text, width, gutter_style.patch(style));
-                } else {
-                    surface.set_style(
-                        Rect {
-                            x,
-                            y,
-                            width: width as u16,
-                            height: 1,
-                        },
-                        gutter_style,
-                    );
-                }
-                text.clear();
+            left_offset += width as u16;
+        }
+
+        for gutter_type in view.gutters_right() {
+            let mut gutter = gutter_type.style(editor, doc, view, theme, is_focused);
+            let width = gutter_type.width(view, doc);
+
+            right_offset += width as u16;
+
+            Self::render_gutter_item(
+                viewport.x + (view.area.width.saturating_sub(right_offset)),
+                width,
+                &mut gutter,
+                &cursors,
+                gutter_style,
+                gutter_selected_style,
+                view,
+                surface,
+            );
+        }
+    }
+
+    fn render_gutter_item(
+        x_offset: u16,
+        width: usize,
+        gutter_fn: &mut GutterFn,
+        cursors: &Vec<usize>,
+        gutter_style: Style,
+        gutter_selected_style: Style,
+        view: &View,
+        surface: &mut Surface,
+    ) {
+        let viewport = view.area;
+
+        let last_line = (view.offset.row + view.inner_height()).saturating_add(1);
+
+        // avoid lots of small allocations by reusing a text buffer for each line
+        let mut text = String::with_capacity(8);
+
+        text.reserve(width); // ensure there's enough space for the gutter
+        for (i, line) in (view.offset.row..(last_line + 1)).enumerate() {
+            let selected = cursors.contains(&line);
+            let y = viewport.y + i as u16;
+
+            let gutter_style = if selected {
+                gutter_selected_style
+            } else {
+                gutter_style
+            };
+
+            if let Some(style) = gutter_fn(line, selected, &mut text) {
+                surface.set_stringn(x_offset, y, &text, width, gutter_style.patch(style));
+            } else {
+                surface.set_style(
+                    Rect {
+                        x: x_offset,
+                        y,
+                        width: width as u16,
+                        height: 1,
+                    },
+                    gutter_style,
+                );
             }
-
-            offset += width as u16;
+            text.clear();
         }
     }
 

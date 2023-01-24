@@ -148,21 +148,21 @@ pub fn scrollbar<'doc>(
         return Box::new(move |_, _, _| None);
     }
 
-    let height_percentage = view_height as f32 / total_lines as f32;
-    let height = (height_percentage * view_height as f32).ceil() as usize;
-    let scrollable_view_height = view_height.saturating_sub(height);
-    let start_line_view_percentage =
-        view.offset.row as f32 / total_lines.saturating_sub(view_height) as f32;
+    let height =
+        ((view_height.pow(2) as f32 / total_lines as f32).ceil() as usize).saturating_sub(1);
 
-    let start_line = view.offset.row.saturating_add(
-        (start_line_view_percentage * scrollable_view_height as f32).ceil() as usize,
-    );
-    let end_line = start_line.saturating_add(height);
+    let scrollable_view_height = view_height.saturating_sub(height);
+    let scroll_percentage = view.offset.row as f32 / total_lines.saturating_sub(view_height) as f32;
+
+    let start_line = view
+        .offset
+        .row
+        .saturating_add((scroll_percentage * scrollable_view_height as f32).ceil() as usize);
 
     let style = theme.get("ui.linenr");
     Box::new(move |line: usize, _selected: bool, out: &mut String| {
-        let icon = if line >= start_line && line <= end_line {
-            "▍"
+        let icon = if line >= start_line && line <= start_line.saturating_add(height) {
+            "▐"
         } else {
             ""
         };
@@ -342,7 +342,11 @@ mod tests {
 
     #[test]
     fn test_default_gutter_widths() {
-        let mut view = View::new(DocumentId::default(), GutterConfig::default());
+        let mut view = View::new(
+            DocumentId::default(),
+            GutterConfig::default(),
+            GutterConfig::from(Vec::new()),
+        );
         view.area = Rect::new(40, 40, 40, 40);
 
         let rope = Rope::from_str("abc\n\tdef");
@@ -363,7 +367,11 @@ mod tests {
             ..Default::default()
         };
 
-        let mut view = View::new(DocumentId::default(), gutters);
+        let mut view = View::new(
+            DocumentId::default(),
+            gutters,
+            GutterConfig::from(Vec::new()),
+        );
         view.area = Rect::new(40, 40, 40, 40);
 
         let rope = Rope::from_str("abc\n\tdef");
@@ -377,7 +385,11 @@ mod tests {
             line_numbers: GutterLineNumbersConfig { min_width: 10 },
         };
 
-        let mut view = View::new(DocumentId::default(), gutters);
+        let mut view = View::new(
+            DocumentId::default(),
+            gutters,
+            GutterConfig::from(Vec::new()),
+        );
         view.area = Rect::new(40, 40, 40, 40);
 
         let rope = Rope::from_str("abc\n\tdef");
@@ -395,7 +407,11 @@ mod tests {
             line_numbers: GutterLineNumbersConfig { min_width: 1 },
         };
 
-        let mut view = View::new(DocumentId::default(), gutters);
+        let mut view = View::new(
+            DocumentId::default(),
+            gutters,
+            GutterConfig::from(Vec::new()),
+        );
         view.area = Rect::new(40, 40, 40, 40);
 
         let rope = Rope::from_str("a\nb");
@@ -407,5 +423,29 @@ mod tests {
         assert_eq!(view.gutters.layout.len(), 2);
         assert_eq!(view.gutters.layout[1].width(&view, &doc_short), 1);
         assert_eq!(view.gutters.layout[1].width(&view, &doc_long), 2);
+    }
+
+    #[test]
+    fn test_left_gutters_with_right_gutters() {
+        let gutters = GutterConfig {
+            layout: vec![GutterType::Diagnostics, GutterType::LineNumbers],
+            line_numbers: GutterLineNumbersConfig { min_width: 10 },
+        };
+        let gutters_right = GutterConfig {
+            layout: vec![GutterType::ScrollBar],
+            line_numbers: GutterLineNumbersConfig::default(),
+        };
+        let mut view = View::new(DocumentId::default(), gutters, gutters_right);
+        view.area = Rect::new(40, 40, 40, 40);
+
+        let rope = Rope::from_str("abc\n\tdef");
+        let doc = Document::from(rope, None);
+
+        assert_eq!(view.gutters.layout.len(), 2);
+        assert_eq!(view.gutters.layout[0].width(&view, &doc), 1);
+        assert_eq!(view.gutters.layout[1].width(&view, &doc), 10);
+
+        assert_eq!(view.gutters_right.layout.len(), 1);
+        assert_eq!(view.gutters_right.layout[0].width(&view, &doc), 1);
     }
 }
