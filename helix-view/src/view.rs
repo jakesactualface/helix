@@ -155,7 +155,10 @@ impl View {
     }
 
     pub fn inner_area(&self, doc: &Document) -> Rect {
-        self.area.clip_left(self.gutter_offset(doc)).clip_bottom(1) // -1 for statusline
+        self.area
+            .clip_left(self.gutter_offset(doc))
+            .clip_right(self.gutter_right_offset(doc))
+            .clip_bottom(1) // -1 for statusline
     }
 
     pub fn inner_height(&self) -> usize {
@@ -172,6 +175,14 @@ impl View {
 
     pub fn gutter_offset(&self, doc: &Document) -> u16 {
         self.gutters
+            .layout
+            .iter()
+            .map(|gutter| gutter.width(self, doc) as u16)
+            .sum()
+    }
+
+    pub fn gutter_right_offset(&self, doc: &Document) -> u16 {
+        self.gutters_right
             .layout
             .iter()
             .map(|gutter| gutter.width(self, doc) as u16)

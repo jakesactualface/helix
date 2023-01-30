@@ -730,10 +730,6 @@ impl EditorView {
         theme: &Theme,
         is_focused: bool,
     ) {
-        let viewport = view.area;
-        let gutter_style = theme.get("ui.gutter");
-        let gutter_selected_style = theme.get("ui.gutter.selected");
-
         let text = doc.text().slice(..);
 
         // it's used inside an iterator so the collect isn't needless:
@@ -753,12 +749,11 @@ impl EditorView {
             let width = gutter_type.width(view, doc);
 
             Self::render_gutter_item(
-                viewport.x + left_offset,
+                left_offset,
                 width,
                 &mut gutter,
                 &cursors,
-                gutter_style,
-                gutter_selected_style,
+                theme,
                 view,
                 surface,
             );
@@ -773,12 +768,11 @@ impl EditorView {
             right_offset += width as u16;
 
             Self::render_gutter_item(
-                viewport.x + (view.area.width.saturating_sub(right_offset)),
+                view.area.width.saturating_sub(right_offset),
                 width,
                 &mut gutter,
                 &cursors,
-                gutter_style,
-                gutter_selected_style,
+                theme,
                 view,
                 surface,
             );
@@ -789,13 +783,14 @@ impl EditorView {
         x_offset: u16,
         width: usize,
         gutter_fn: &mut GutterFn,
-        cursors: &Vec<usize>,
-        gutter_style: Style,
-        gutter_selected_style: Style,
+        cursors: &[usize],
+        theme: &Theme,
         view: &View,
         surface: &mut Surface,
     ) {
         let viewport = view.area;
+        let gutter_style = theme.get("ui.gutter");
+        let gutter_selected_style = theme.get("ui.gutter.selected");
 
         let last_line = (view.offset.row + view.inner_height()).saturating_add(1);
 
@@ -814,11 +809,17 @@ impl EditorView {
             };
 
             if let Some(style) = gutter_fn(line, selected, &mut text) {
-                surface.set_stringn(x_offset, y, &text, width, gutter_style.patch(style));
+                surface.set_stringn(
+                    viewport.x + x_offset,
+                    y,
+                    &text,
+                    width,
+                    gutter_style.patch(style),
+                );
             } else {
                 surface.set_style(
                     Rect {
-                        x: x_offset,
+                        x: viewport.x + x_offset,
                         y,
                         width: width as u16,
                         height: 1,
