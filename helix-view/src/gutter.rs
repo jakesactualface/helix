@@ -159,7 +159,7 @@ pub fn scrollbar<'doc>(
         .row
         .saturating_add((scroll_percentage * scrollable_view_height as f32).ceil() as usize);
 
-    let style = theme.get("ui.linenr");
+    let style = theme.get("ui.menu.scroll");
     Box::new(move |line: usize, _selected: bool, out: &mut String| {
         let icon = if line >= start_line && line <= start_line.saturating_add(height) {
             "▐"
