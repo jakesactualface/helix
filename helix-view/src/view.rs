@@ -111,7 +111,7 @@ pub struct View {
     pub object_selections: Vec<Selection>,
     /// all gutter-related configuration settings, used primarily for gutter rendering
     pub gutters: GutterConfig,
-    /// all configuration settings related to the right gutter
+    /// all configuration settings related to the right-hand gutter
     pub gutters_right: GutterConfig,
     /// A mapping between documents and the last history revision the view was updated at.
     /// Changes between documents and views are synced lazily when switching windows. This
@@ -156,8 +156,8 @@ impl View {
 
     pub fn inner_area(&self, doc: &Document) -> Rect {
         self.area
-            .clip_left(self.gutter_offset(doc))
-            .clip_right(self.gutter_right_offset(doc))
+            .clip_left(self.gutter_width(doc))
+            .clip_right(self.gutter_right_width(doc))
             .clip_bottom(1) // -1 for statusline
     }
 
@@ -173,7 +173,8 @@ impl View {
         &self.gutters_right.layout
     }
 
-    pub fn gutter_offset(&self, doc: &Document) -> u16 {
+    /// Returns combined width of all left-hand gutter items.
+    pub fn gutter_width(&self, doc: &Document) -> u16 {
         self.gutters
             .layout
             .iter()
@@ -181,7 +182,8 @@ impl View {
             .sum()
     }
 
-    pub fn gutter_right_offset(&self, doc: &Document) -> u16 {
+    /// Returns combined width of all right-hand gutter items.
+    pub fn gutter_right_width(&self, doc: &Document) -> u16 {
         self.gutters_right
             .layout
             .iter()
@@ -615,5 +617,21 @@ mod tests {
             view.text_pos_at_screen_coords(&doc, 40, 40 + DEFAULT_GUTTER_OFFSET + 4, 4),
             Some(7)
         );
+    }
+
+    #[test]
+    fn test_gutter_width_calculation() {
+        let gutters = GutterConfig::default();
+        let gutters_right = GutterConfig {
+            layout: vec![GutterType::ScrollBar],
+            line_numbers: GutterLineNumbersConfig::default(),
+        };
+        let mut view = View::new(DocumentId::default(), gutters, gutters_right);
+        view.area = Rect::new(40, 40, 40, 40);
+        let rope = Rope::from_str("Hèl̀l̀ò world!");
+        let doc = Document::from(rope, None);
+
+        assert_eq!(view.gutter_width(&doc), DEFAULT_GUTTER_OFFSET);
+        assert_eq!(view.gutter_right_width(&doc), 1);
     }
 }

@@ -765,6 +765,8 @@ impl EditorView {
             let mut gutter = gutter_type.style(editor, doc, view, theme, is_focused);
             let width = gutter_type.width(view, doc);
 
+            // Offset is moved prior to rendering right-hand gutter items
+            // since string rendering happens from left to right
             right_offset += width as u16;
 
             Self::render_gutter_item(

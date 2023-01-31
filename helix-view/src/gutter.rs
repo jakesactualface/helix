@@ -432,7 +432,7 @@ mod tests {
             line_numbers: GutterLineNumbersConfig { min_width: 10 },
         };
         let gutters_right = GutterConfig {
-            layout: vec![GutterType::ScrollBar],
+            layout: vec![GutterType::Diff, GutterType::ScrollBar],
             line_numbers: GutterLineNumbersConfig::default(),
         };
         let mut view = View::new(DocumentId::default(), gutters, gutters_right);
@@ -445,7 +445,8 @@ mod tests {
         assert_eq!(view.gutters.layout[0].width(&view, &doc), 1);
         assert_eq!(view.gutters.layout[1].width(&view, &doc), 10);
 
-        assert_eq!(view.gutters_right.layout.len(), 1);
+        assert_eq!(view.gutters_right.layout.len(), 2);
         assert_eq!(view.gutters_right.layout[0].width(&view, &doc), 1);
+        assert_eq!(view.gutters_right.layout[1].width(&view, &doc), 1);
     }
 }
