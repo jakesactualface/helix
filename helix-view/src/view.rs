@@ -623,7 +623,7 @@ mod tests {
     fn test_gutter_width_calculation() {
         let gutters = GutterConfig::default();
         let gutters_right = GutterConfig {
-            layout: vec![GutterType::ScrollBar],
+            layout: vec![GutterType::Scrollbar],
             line_numbers: GutterLineNumbersConfig::default(),
         };
         let mut view = View::new(DocumentId::default(), gutters, gutters_right);

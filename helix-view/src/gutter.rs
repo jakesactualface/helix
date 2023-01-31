@@ -32,7 +32,7 @@ impl GutterType {
             GutterType::LineNumbers => line_numbers(editor, doc, view, theme, is_focused),
             GutterType::Spacer => padding(editor, doc, view, theme, is_focused),
             GutterType::Diff => diff(editor, doc, view, theme, is_focused),
-            GutterType::ScrollBar => scrollbar(editor, doc, view, theme, is_focused),
+            GutterType::Scrollbar => scrollbar(editor, doc, view, theme, is_focused),
         }
     }
 
@@ -42,7 +42,7 @@ impl GutterType {
             GutterType::LineNumbers => line_numbers_width(view, doc),
             GutterType::Spacer => 1,
             GutterType::Diff => 1,
-            GutterType::ScrollBar => 1,
+            GutterType::Scrollbar => 1,
         }
     }
 }
@@ -432,7 +432,7 @@ mod tests {
             line_numbers: GutterLineNumbersConfig { min_width: 10 },
         };
         let gutters_right = GutterConfig {
-            layout: vec![GutterType::Diff, GutterType::ScrollBar],
+            layout: vec![GutterType::Diff, GutterType::Scrollbar],
             line_numbers: GutterLineNumbersConfig::default(),
         };
         let mut view = View::new(DocumentId::default(), gutters, gutters_right);

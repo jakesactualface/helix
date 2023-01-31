@@ -556,7 +556,7 @@ pub enum GutterType {
     /// Highlight local changes
     Diff,
     /// Show scrollbar
-    ScrollBar,
+    Scrollbar,
 }
 
 impl std::str::FromStr for GutterType {
@@ -568,7 +568,7 @@ impl std::str::FromStr for GutterType {
             "spacer" => Ok(Self::Spacer),
             "line-numbers" => Ok(Self::LineNumbers),
             "diff" => Ok(Self::Diff),
-            "scrollbar" => Ok(Self::ScrollBar),
+            "scrollbar" => Ok(Self::Scrollbar),
             _ => anyhow::bail!("Gutter type can only be `diagnostics`, `line-numbers`, `diff`, `spacer`, or `scrollbar`."),
         }
     }
