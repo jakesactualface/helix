@@ -32,6 +32,7 @@ impl GutterType {
             GutterType::LineNumbers => line_numbers(editor, doc, view, theme, is_focused),
             GutterType::Spacer => padding(editor, doc, view, theme, is_focused),
             GutterType::Diff => diff(editor, doc, view, theme, is_focused),
+            GutterType::Scrollbar => scrollbar(editor, doc, view, theme, is_focused),
         }
     }
 
@@ -41,6 +42,7 @@ impl GutterType {
             GutterType::LineNumbers => line_numbers_width(view, doc),
             GutterType::Spacer => 1,
             GutterType::Diff => 1,
+            GutterType::Scrollbar => 1,
         }
     }
 }
@@ -136,6 +138,47 @@ pub fn diff<'doc>(
     } else {
         Box::new(move |_, _, _, _| None)
     }
+}
+
+pub fn scrollbar<'doc>(
+    _editor: &'doc Editor,
+    doc: &'doc Document,
+    view: &View,
+    theme: &Theme,
+    is_focused: bool,
+) -> GutterFn<'doc> {
+    let total_lines = doc.text().len_lines();
+    let view_height = view.inner_height();
+    let view_vertical_offset = doc.text().char_to_line(view.offset.anchor);
+
+    // Scrollbar will only be rendered on focused views where contents exceed the view height
+    if !is_focused || view_height >= total_lines {
+        return Box::new(move |_, _, _, _| None);
+    }
+
+    let height =
+        ((view_height.pow(2) as f32 / total_lines as f32).ceil() as usize).saturating_sub(1);
+
+    let scrollable_view_height = view_height.saturating_sub(height);
+    let scroll_percentage =
+        view_vertical_offset as f32 / total_lines.saturating_sub(view_height) as f32;
+
+    let start_line = view_vertical_offset
+        .saturating_add((scroll_percentage * scrollable_view_height as f32).ceil() as usize);
+
+    let style = theme.get("ui.menu.scroll");
+    Box::new(
+        move |line: usize, _selected: bool, _first_visual_line: bool, out: &mut String| {
+            let icon = if line >= start_line && line <= start_line.saturating_add(height) {
+                "█"
+            } else {
+                ""
+            };
+
+            write!(out, "{}", icon).unwrap();
+            Some(style)
+        },
+    )
 }
 
 pub fn line_numbers<'doc>(
