@@ -346,7 +346,11 @@ mod tests {
 
     #[test]
     fn test_default_gutter_widths() {
-        let mut view = View::new(DocumentId::default(), GutterConfig::default());
+        let mut view = View::new(
+            DocumentId::default(),
+            GutterConfig::default(),
+            GutterConfig::from(Vec::new()),
+        );
         view.area = Rect::new(40, 40, 40, 40);
 
         let rope = Rope::from_str("abc\n\tdef");
@@ -371,7 +375,11 @@ mod tests {
             ..Default::default()
         };
 
-        let mut view = View::new(DocumentId::default(), gutters);
+        let mut view = View::new(
+            DocumentId::default(),
+            gutters,
+            GutterConfig::from(Vec::new()),
+        );
         view.area = Rect::new(40, 40, 40, 40);
 
         let rope = Rope::from_str("abc\n\tdef");
@@ -389,7 +397,11 @@ mod tests {
             line_numbers: GutterLineNumbersConfig { min_width: 10 },
         };
 
-        let mut view = View::new(DocumentId::default(), gutters);
+        let mut view = View::new(
+            DocumentId::default(),
+            gutters,
+            GutterConfig::from(Vec::new()),
+        );
         view.area = Rect::new(40, 40, 40, 40);
 
         let rope = Rope::from_str("abc\n\tdef");
@@ -411,7 +423,11 @@ mod tests {
             line_numbers: GutterLineNumbersConfig { min_width: 1 },
         };
 
-        let mut view = View::new(DocumentId::default(), gutters);
+        let mut view = View::new(
+            DocumentId::default(),
+            gutters,
+            GutterConfig::from(Vec::new()),
+        );
         view.area = Rect::new(40, 40, 40, 40);
 
         let rope = Rope::from_str("a\nb");
@@ -431,5 +447,35 @@ mod tests {
         assert_eq!(view.gutters.layout.len(), 2);
         assert_eq!(view.gutters.layout[1].width(&view, &doc_short), 1);
         assert_eq!(view.gutters.layout[1].width(&view, &doc_long), 2);
+    }
+
+    #[test]
+    fn test_left_gutters_with_right_gutters() {
+        let gutters = GutterConfig {
+            layout: vec![GutterType::Diagnostics, GutterType::LineNumbers],
+            line_numbers: GutterLineNumbersConfig { min_width: 10 },
+        };
+        let gutters_right = GutterConfig {
+            layout: vec![GutterType::Diff, GutterType::LineNumbers],
+            line_numbers: GutterLineNumbersConfig::default(),
+        };
+        let mut view = View::new(DocumentId::default(), gutters, gutters_right);
+        view.area = Rect::new(40, 40, 40, 40);
+
+        let rope = Rope::from_str("abc\n\tdef");
+        let doc = Document::from(
+            rope,
+            None,
+            Arc::new(ArcSwap::new(Arc::new(Config::default()))),
+        );
+
+        assert_eq!(view.gutters.layout.len(), 2);
+        assert_eq!(view.gutters.layout[0].width(&view, &doc), 1);
+        assert_eq!(view.gutters.layout[1].width(&view, &doc), 10);
+
+        assert_eq!(view.gutters_right.layout.len(), 2);
+        assert_eq!(view.gutters_right.layout[0].width(&view, &doc), 1);
+        // TODO: Allow separate configuration for line numbers within right gutter
+        assert_eq!(view.gutters_right.layout[1].width(&view, &doc), 10);
     }
 }

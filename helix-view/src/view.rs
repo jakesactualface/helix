@@ -125,6 +125,8 @@ pub struct View {
     pub object_selections: Vec<Selection>,
     /// all gutter-related configuration settings, used primarily for gutter rendering
     pub gutters: GutterConfig,
+    /// all configuration settings related to the right-hand gutter
+    pub gutters_right: GutterConfig,
     /// A mapping between documents and the last history revision the view was updated at.
     /// Changes between documents and views are synced lazily when switching windows. This
     /// mapping keeps track of the last applied history revision so that only new changes
@@ -143,7 +145,7 @@ impl fmt::Debug for View {
 }
 
 impl View {
-    pub fn new(doc: DocumentId, gutters: GutterConfig) -> Self {
+    pub fn new(doc: DocumentId, gutters: GutterConfig, gutters_right: GutterConfig) -> Self {
         Self {
             id: ViewId::default(),
             doc,
@@ -158,6 +160,7 @@ impl View {
             last_modified_docs: [None, None],
             object_selections: Vec::new(),
             gutters,
+            gutters_right,
             doc_revisions: HashMap::new(),
         }
     }
@@ -170,7 +173,10 @@ impl View {
     }
 
     pub fn inner_area(&self, doc: &Document) -> Rect {
-        self.area.clip_left(self.gutter_offset(doc)).clip_bottom(1) // -1 for statusline
+        self.area
+            .clip_left(self.gutter_width(doc))
+            .clip_right(self.gutter_right_width(doc))
+            .clip_bottom(1) // -1 for statusline
     }
 
     pub fn inner_height(&self) -> usize {
@@ -178,18 +184,44 @@ impl View {
     }
 
     pub fn inner_width(&self, doc: &Document) -> u16 {
-        self.area.clip_left(self.gutter_offset(doc)).width
+        self.area
+            .clip_left(self.gutter_width(doc))
+            .clip_right(self.gutter_right_width(doc))
+            .width
     }
 
     pub fn gutters(&self) -> &[GutterType] {
         &self.gutters.layout
     }
 
-    pub fn gutter_offset(&self, doc: &Document) -> u16 {
+    pub fn gutters_right(&self) -> &[GutterType] {
+        &self.gutters_right.layout
+    }
+
+    /// Returns combined width of all left-hand gutter items.
+    pub fn gutter_width(&self, doc: &Document) -> u16 {
+        self.gutters
+            .layout
+            .iter()
+            .map(|gutter| gutter.width(self, doc) as u16)
+            .sum()
+    }
+
+    /// Returns combined width of all right-hand gutter items.
+    pub fn gutter_right_width(&self, doc: &Document) -> u16 {
+        self.gutters_right
+            .layout
+            .iter()
+            .map(|gutter| gutter.width(self, doc) as u16)
+            .sum()
+    }
+
+    pub fn gutters_total_width(&self, doc: &Document) -> u16 {
         let total_width = self
             .gutters
             .layout
             .iter()
+            .chain(self.gutters_right.layout.iter())
             .map(|gutter| gutter.width(self, doc) as u16)
             .sum();
         if total_width < self.area.width {
@@ -647,7 +679,11 @@ mod tests {
 
     #[test]
     fn test_text_pos_at_screen_coords() {
-        let mut view = View::new(DocumentId::default(), GutterConfig::default());
+        let mut view = View::new(
+            DocumentId::default(),
+            GutterConfig::default(),
+            GutterConfig::from(Vec::new()),
+        );
         view.area = Rect::new(40, 40, 40, 40);
         let rope = Rope::from_str("abc\n\tdef");
         let doc = Document::from(
@@ -821,6 +857,7 @@ mod tests {
                 layout: vec![GutterType::Diagnostics],
                 line_numbers: GutterLineNumbersConfig::default(),
             },
+            GutterConfig::from(Vec::new()),
         );
         view.area = Rect::new(40, 40, 40, 40);
         let rope = Rope::from_str("abc\n\tdef");
@@ -850,6 +887,7 @@ mod tests {
                 layout: vec![],
                 line_numbers: GutterLineNumbersConfig::default(),
             },
+            GutterConfig::from(Vec::new()),
         );
         view.area = Rect::new(40, 40, 40, 40);
         let rope = Rope::from_str("abc\n\tdef");
@@ -873,7 +911,11 @@ mod tests {
 
     #[test]
     fn test_text_pos_at_screen_coords_cjk() {
-        let mut view = View::new(DocumentId::default(), GutterConfig::default());
+        let mut view = View::new(
+            DocumentId::default(),
+            GutterConfig::default(),
+            GutterConfig::from(Vec::new()),
+        );
         view.area = Rect::new(40, 40, 40, 40);
         let rope = Rope::from_str("Hi! こんにちは皆さん");
         let doc = Document::from(
@@ -956,7 +998,11 @@ mod tests {
 
     #[test]
     fn test_text_pos_at_screen_coords_graphemes() {
-        let mut view = View::new(DocumentId::default(), GutterConfig::default());
+        let mut view = View::new(
+            DocumentId::default(),
+            GutterConfig::default(),
+            GutterConfig::from(Vec::new()),
+        );
         view.area = Rect::new(40, 40, 40, 40);
         let rope = Rope::from_str("Hèl̀l̀ò world!");
         let doc = Document::from(
@@ -1024,5 +1070,25 @@ mod tests {
             ),
             Some(7)
         );
+    }
+
+    #[test]
+    fn test_gutter_width_calculation() {
+        let gutters = GutterConfig::default();
+        let gutters_right = GutterConfig {
+            layout: vec![GutterType::Diff],
+            line_numbers: GutterLineNumbersConfig::default(),
+        };
+        let mut view = View::new(DocumentId::default(), gutters, gutters_right);
+        view.area = Rect::new(40, 40, 40, 40);
+        let rope = Rope::from_str("Hèl̀l̀ò world!");
+        let doc = Document::from(
+            rope,
+            None,
+            Arc::new(ArcSwap::new(Arc::new(Config::default()))),
+        );
+
+        assert_eq!(view.gutter_width(&doc), DEFAULT_GUTTER_OFFSET);
+        assert_eq!(view.gutter_right_width(&doc), 1);
     }
 }
