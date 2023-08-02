@@ -170,7 +170,7 @@ pub fn scrollbar<'doc>(
     Box::new(
         move |line: usize, _selected: bool, _first_visual_line: bool, out: &mut String| {
             let icon = if line >= start_line && line <= start_line.saturating_add(height) {
-                "█"
+                "▐"
             } else {
                 ""
             };
